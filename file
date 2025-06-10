@@ -1,0 +1,72 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+import seaborn as sns
+
+# Step 1: Synthetic Data Generation
+np.random.seed(42)
+n_samples = 5000
+
+data = {
+    'temperature': np.random.normal(loc=30, scale=5, size=n_samples),         # °C
+    'humidity': np.random.uniform(30, 100, n_samples),                        # %
+    'co2_level': np.random.normal(loc=400, scale=100, size=n_samples),        # ppm
+    'pm25': np.random.exponential(scale=25, size=n_samples),                  # μg/m³
+    'rainfall': np.random.exponential(scale=5, size=n_samples),               # mm/hr
+    'seismic_activity': np.random.uniform(0, 5, n_samples),                   # Richter scale
+}
+
+df = pd.DataFrame(data)
+
+# Step 2: Generate Labels (0: No Hazard, 1: Hazard)
+def label_hazard(row):
+    if (
+        row['temperature'] > 40 or 
+        row['humidity'] < 35 or 
+        row['co2_level'] > 600 or 
+        row['pm25'] > 100 or 
+        row['rainfall'] > 50 or 
+        row['seismic_activity'] > 3.5
+    ):
+        return 1  # Hazard
+    return 0  # No Hazard
+
+df['hazard'] = df.apply(label_hazard, axis=1)
+
+# Step 3: Feature Engineering
+X = df.drop('hazard', axis=1)
+y = df['hazard']
+
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+
+# Step 4: Train/Test Split
+X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
+
+# Step 5: Model Training
+model = RandomForestClassifier(n_estimators=100, random_state=42)
+model.fit(X_train, y_train)
+
+# Step 6: Prediction and Evaluation
+y_pred = model.predict(X_test)
+
+print("Classification Report:")
+print(classification_report(y_test, y_pred))
+
+print("Confusion Matrix:")
+sns.heatmap(confusion_matrix(y_test, y_pred), annot=True, fmt='d', cmap='Blues')
+plt.xlabel("Predicted")
+plt.ylabel("Actual")
+plt.title("Confusion Matrix for Environmental Hazard Detection")
+plt.show()
+
+# Feature Importance Plot
+feature_importances = pd.Series(model.feature_importances_, index=X.columns)
+feature_importances.nlargest(6).plot(kind='barh')
+plt.title("Feature Importance")
+plt.xlabel("Importance Score")
+plt.show()
